@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="description" content="Two linked particles exchange equal and opposite integer momentum kicks.">
+<title>Springs · An Atlas of Reversibility</title>
+<link rel="stylesheet" href="./atlas.css?v=1">
+<script type="module" src="./atlas-view.mjs?v=1"></script>
+</head>
+<body data-chapter="springs">
+<header class="mast">
+ <a class="brand" href="./index.html">ATLAS <span>/ REVERSIBILITY</span></a>
+ <div class="mast-meta">FROM ONE DIMENSION TO E8 & BEYOND</div>
+<nav class="site-quicknav" aria-label="Research demos"><a href="../../index.html">Overview</a><a href="../../springs.html">Springs V2</a></nav>
+ <button id="menuToggle" class="menu-toggle" type="button" aria-expanded="false">Contents</button>
+</header>
+<div class="shell">
+ <nav class="chapters" aria-label="Chapters">
+  <div class="rail-label">THE JOURNEY · 12 FOUNDATIONS + 3 APPLICATIONS</div>
+  <a class="chapter-link" href="index.html" aria-label="Chapter 00: Begin with a point"><span class="chno">00</span><span>Begin with a point</span></a><a class="chapter-link" href="01-line.html" aria-label="Chapter 01: One dimension"><span class="chno">01</span><span>One dimension</span></a><a class="chapter-link" href="02-dimensions.html" aria-label="Chapter 02: Up through dimensions"><span class="chno">02</span><span>Up through dimensions</span></a><a class="chapter-link" href="03-e8.html" aria-label="Chapter 03: The E8 root lattice"><span class="chno">03</span><span>The E8 root lattice</span></a><a class="chapter-link" href="04-shadow.html" aria-label="Chapter 04: The golden shadow"><span class="chno">04</span><span>The golden shadow</span></a><a class="chapter-link" href="05-state.html" aria-label="Chapter 05: What a particle knows"><span class="chno">05</span><span>What a particle knows</span></a><a class="chapter-link" href="06-transport.html" aria-label="Chapter 06: Transport"><span class="chno">06</span><span>Transport</span></a><a class="chapter-link" href="07-time.html" aria-label="Chapter 07: Scheduled time"><span class="chno">07</span><span>Scheduled time</span></a><a class="chapter-link" href="08-collisions.html" aria-label="Chapter 08: Exact local collisions"><span class="chno">08</span><span>Exact local collisions</span></a><a class="chapter-link" href="09-springs.html" aria-label="Chapter 09: Springs"><span class="chno">09</span><span>Springs</span></a><a class="chapter-link" href="10-flock.html" aria-label="Chapter 10: Flocking without forgetting"><span class="chno">10</span><span>Flocking without forgetting</span></a><a class="chapter-link" href="11-inverse.html" aria-label="Chapter 11: The complete return"><span class="chno">11</span><span>The complete return</span></a>
+  <a class="chapter-link" href="12-fields.html" aria-label="Chapter 12: Scalar fields"><span class="chno">12</span><span>A scalar field</span></a>
+  <a class="chapter-link" href="13-fixed-points.html" aria-label="Chapter 13: Fixed points"><span class="chno">13</span><span>Fixed points and flocking</span></a>
+  <a class="chapter-link" href="14-learning.html" aria-label="Chapter 14: Machine learning"><span class="chno">14</span><span>Learn the field</span></a>
+  <div class="rail-links">
+    <span>EXPLORE THE FULL MODELS</span>
+    <a href="./03-e8.html">E8 / H4 geometry ↗</a>
+    <a href="../../springs.html">Springs & flocking ↗</a>
+  </div>
+ </nav>
+ <main class="content">
+  <section class="chapter-intro">
+   <div class="eyebrow">CHAPTER 09 / 14 · AN INTERACTIVE EXPLANATION</div>
+   <h1>Springs<span class="period">.</span></h1>
+   <p class="lead">Kick the momentum; drift the positions.</p>
+   <p class="deck">Two linked particles exchange equal and opposite integer momentum kicks.</p>
+  </section>
+  <section class="workbench" aria-label="Interactive 3D explanation">
+    <div class="stage">
+      <canvas id="scene" aria-label="Rotatable three-dimensional visualization of Springs"></canvas>
+      <div class="stage-top"><span id="stageKind">LOADING / THREE-DIMENSIONAL VIEW</span><span>DRAG TO ORBIT · SCROLL TO ZOOM</span></div>
+      <div class="stage-tools">
+        <button id="resetCamera" type="button" title="Reset orbit and zoom">Reset view</button>
+        <label class="stage-check"><input type="checkbox" id="labels" checked> Labels</label>
+        <label class="stage-check"><input type="checkbox" id="projection"> Orthographic</label>
+      </div>
+      <div class="axis-hint">X <span>Y</span> Z · PROJECTED VIEW</div>
+      <div class="stage-bottom" id="visualLegend">SIMULATION IS NOT A VIDEO</div>
+    </div>
+    <aside class="lesson-panel">
+      <div class="panel-kicker">SINGLE STEP / EXACT STATE</div>
+      <div class="step-counter" id="stepCounter">01 / 01</div>
+      <div class="step-track" id="stepTrack" aria-label="Select an explanation step"></div>
+      <h2 id="stepTitle">Building the chapter…</h2>
+      <p class="step-explain" id="stepExplain">Each stage reveals a mathematical transformation.</p>
+      <div class="equation"><span>OPERATION</span><code id="stepEquation">K: p′ = p + F(x) ; D: x′ = x + ⌊p′/256⌋₀</code></div>
+      <div class="small-facts"><span>INSPECT STATE</span><pre id="stateReadout">—</pre></div>
+      <div class="actions">
+       <button id="previous" type="button">← Back</button>
+       <button id="next" class="primary" type="button">Next →</button>
+       <button id="play" type="button">Play</button>
+       <button id="reverse" type="button">Reverse</button>
+       <button id="resetSteps" type="button">Reset</button>
+      </div>
+      <p id="certificate" class="certificate">The inverse check will appear here.</p>
+    </aside>
+  </section>
+  <section class="principle">
+    <div class="minor-label">WHAT TO REMEMBER</div>
+    <p>Undo drift before subtracting the same position-derived kick.</p>
+  </section>
+  <section class="deep-links">
+    <div><div class="minor-label">FROM THE SMALL DEMONSTRATION TO THE RESEARCH</div><h2>See the full systems.</h2>
+      <p>These chapters teach small, inspectable transformations. The linked demos run the larger authenticated simulations and their own exact-state checks.</p>
+    </div>
+    <div class="link-panels">
+      <a href="./03-e8.html"><strong>E8 / H4 geometry</strong><span>Explore the exact lattice construction ↗</span></a>
+      <a href="../../springs.html"><strong>Springs / Flock</strong><span>Reversible integer dynamics, forces, hidden state, and the 3D GPU viewer ↗</span></a>
+    </div>
+  </section>
+  <footer class="chapter-footer"><a class="chapter-jump" href="08-collisions.html">← Exact local collisions</a><a class="chapter-jump next" href="10-flock.html">Flocking without forgetting →</a></footer>
+ </main>
+</div>
+</body>
+</html>

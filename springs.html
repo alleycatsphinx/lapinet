@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="A small reversible integer springs and flocking demonstration">
+<title>Lapinet · Reversible Springs V2</title><link rel="stylesheet" href="./springs-v2.css?v=6"></head>
+<body>
+<header><div><h1>REVERSIBLE SPRINGS</h1><small>NOETHER + HELIOS / V2</small></div><nav aria-label="Lapinet navigation"><a href="./">Overview</a><a href="./noether-h4-62/atlas/index.html">Atlas</a></nav></header>
+<main class="layout">
+ <div class="viewer" id="viewport">
+   <canvas id="view" aria-label="WebGPU visualization of reversible integer springs and particle trajectories"></canvas>
+   <div class="camera-tools"><button id="resetCamera" title="Restore the origin-centered orbit">Reset view</button><button id="viewXY">XY</button><button id="viewXZ">XZ</button><button id="viewYZ">YZ</button><label class="camera-projection"><input id="orthographicCamera" type="checkbox"/> Orthographic</label></div>
+ </div>
+ <aside>
+   <section><h3>01 / Time and transport</h3>
+    <div class="buttonrow"><button id="play" class="primary" aria-pressed="false" title="Play forward continuously">Play</button><button id="reverse" aria-pressed="false" title="Play backward continuously to tick zero">Reverse</button></div>
+    <div class="buttonrow"><button id="back64">−64</button><button id="back" title="Reverse exactly one physics tick">−1</button><button id="forward" title="Advance exactly one physics tick">+1</button><button id="forward64">+64</button></div>
+    <div class="buttonrow"><button id="reset">Reset</button></div>
+    <p class="subtle">Advance or reverse the integer state machine one tick, or 64 ticks at a time.</p>
+    <div id="status" class="status" role="status" aria-live="polite">Initializing GPU…</div>
+   </section>
+   <section id="demoPresets"><h3>02 / Demo presets</h3>
+    <div class="preset-buttons" role="group" aria-label="Simulation demos">
+     <button id="demoSprings" aria-pressed="false">Springs</button>
+     <button id="demoFlock" aria-pressed="true">Flock</button>
+     <button id="demoDynamic" aria-pressed="false">Dynamic</button>
+     <button id="demoLinear" aria-pressed="false">Linear</button>
+    </div>
+    <p id="presetStatus" class="subtle">Presets use 1/96 coordinate precision and the largest supported particle population for their chosen interactions.</p>
+   </section>
+   <section><h3>03 / Simulation geometry</h3>
+    <div class="fieldrow"><div class="field"><label for="shape">Particle shape</label><select id="shape">
+    <option value="lattice" selected>Lattice</option>
+    <option value="sphere">Sphere</option>
+  </select></div><div class="field"><label for="connectivity">Interaction model</label><select id="connectivity">
+    <option value="bonded" selected>Permanent central bonds</option>
+    <option value="dynamic">Dynamic nearby contacts ≤512 particles</option>
+    <option value="flock">Reversible flocking · auxiliary momentum</option>
+    <option value="straight">Straight-line drift · optional collisions</option>
+  </select></div></div>
+    <div class="fieldrow"><div class="field"><label for="grid">Grid resolution (N³)</label><select id="grid">
+    <option value="6" selected>6 · coarse</option>
+    <option value="8">8 · medium</option>
+    <option value="9">9 · medium+</option>
+    <option value="10">10 · denser sphere</option>
+    <option value="11">11 · 512 sphere</option>
+    <option value="12">12 · fine</option>
+    <option value="16">16 · finer</option>
+    <option value="20">20 · high</option>
+    <option value="24">24 · ultra</option>
+  </select></div><div class="field"><label for="precision">Coordinate precision</label><select id="precision">
+    <option value="8">1/8</option>
+    <option value="16">1/16</option>
+    <option value="32" selected>1/32</option>
+    <option value="64">1/64</option>
+    <option value="96">1/96</option>
+  </select></div></div>
+    <p class="subtle" id="populationReadout" aria-live="polite">Active particles: 216</p>
+    <p class="subtle">Maximum all-pairs population: 512 (11-cell spherical source with three symmetric sites trimmed). Permanent bonds support a 24-cell sphere with 6,272 particles.</p>
+    <div class="slider"><div class="slider-head"><label for="perturb">Initial deformation</label><output id="perturbValue">15</output></div><input type="range" id="perturb" min="0" max="48" value="15" step="1"/><small>Reset to apply</small></div>
+    <label class="check" id="reflectBoundaryLabel"><input id="reflectBoundary" type="checkbox"/><span>Reflective enclosure<small>Rebuilds the fixture</small></span></label>
+    <label class="check" id="followFlockLabel" hidden><input id="followFlock" type="checkbox"/><span>Follow flock<small>Only available for eligible flock modes</small></span></label>
+   </section>
+   <section id="springControls"><h3>04 / Springs and contacts</h3>
+    <p class="subtle">Live changes are recorded at the current tick and replayed during exact rewind.</p>
+    <div class="slider"><div class="slider-head"><label for="stiffness">Spring strength</label><output id="stiffnessValue">12</output></div><input type="range" id="stiffness" min="0" max="64" value="12" step="1"/></div>
+    <div class="slider"><div class="slider-head"><label for="restScale">Rest length</label><output id="restScaleValue">100%</output></div><input type="range" id="restScale" min="50" max="180" value="100" step="1"/></div>
+    <div id="bondedForceControls">
+     <label for="bondedForceModel">Bonded-spring response</label>
+     <select id="bondedForceModel">
+      <option value="smooth" selected>Smooth · reversible Q14</option>
+      <option value="legacy">Original · quantized</option>
+     </select>
+     <p class="subtle">Smaller strengths act smoothly; larger strengths are compressed without damping. Switching response laws resets the simulation to preserve exact history.</p>
+    </div>
+    <div id="dynamicForceControls" hidden>
+     <label for="dynamicForceModel">Dynamic response</label>
+     <select id="dynamicForceModel">
+      <option value="smooth" selected>Smooth · reversible Q14</option>
+      <option value="legacy">Original · quantized</option>
+     </select>
+     <p class="subtle">Smooth mode retains fractional force in integer arithmetic, fades force to zero at the contact radius, compresses high strengths to prevent explosive jumps, and caps pair impulses. Changing the model resets the simulation for an exact replay.</p>
+     <p><a href="./docs/SPRINGS_V2_DYNAMIC_CONTACT_STABILITY_2026-11-16.md">Dynamic-contact investigation and force equation</a></p>
+    </div>
+   </section>
+   <section id="flockControls" hidden><h3>05 / Reversible flocking</h3>
+    <p class="subtle">An auxiliary integer state preserves information that dissipative alignment would destroy. Flocking interactions are normalized by the particle population, preventing dense neighborhoods from multiplying the forces; no velocity damping or clamp is used.</p>
+    <p class="subtle">Each reversible interaction is divided by max(1, ceil(particle count / 16)); at 512 particles the divisor is 32. Alignment, cohesion, and separation slider values are unchanged. Rewind subtracts exactly the same integer force.</p>
+    <div class="slider"><div class="slider-head"><label for="alignment">Alignment</label><output id="alignmentValue">0</output></div><input type="range" id="alignment" min="0" max="64" value="0" step="1"/></div>
+    <div class="slider"><div class="slider-head"><label for="coupling">Hidden coupling</label><output id="couplingValue">0</output></div><input type="range" id="coupling" min="0" max="64" value="0" step="1"/></div>
+    <div class="slider"><div class="slider-head"><label for="cohesion">Cohesion</label><output id="cohesionValue">2</output></div><input type="range" id="cohesion" min="0" max="32" value="2" step="1"/></div>
+    <div class="slider"><div class="slider-head"><label for="separation">Separation</label><output id="separationValue">6</output></div><input type="range" id="separation" min="0" max="32" value="6" step="1"/></div>
+   </section>
+   <section id="linearControls" hidden><h3>05 / Linear motion</h3>
+    <label class="check"><input id="enableGravity" type="checkbox"/><span>Gravity · down Y<small>Optional uniform -Y momentum kick, recorded for exact rewind</small></span></label>
+    <div class="slider" id="gravityControls" hidden><div class="slider-head"><label for="gravity">Gravity strength</label><output id="gravityValue">4</output></div>
+     <input type="range" id="gravity" min="0" max="32" value="4" step="1"/>
+     <small>Applied before drift; undo after reverse drift</small>
+    </div>
+   </section>
+   <section id="neighborControls" hidden><h3>06 / Interaction neighborhood</h3>
+    <p class="subtle">The radius used by dynamic spring and flocking interactions; adjustable live.</p>
+    <div class="slider"><div class="slider-head"><label for="contactRange">Contact radius</label><output id="contactRangeValue">210%</output></div><input type="range" id="contactRange" min="75" max="240" value="210" step="1"/></div>
+   </section>
+   <section id="collisionControls"><h3>07 / Reversible collisions</h3>
+    <label class="check"><input id="particleCollisions" type="checkbox"/><span>Particle collisions<small>Mutual nearest neighbors exchange complete integer momenta. Exact inverse; off by default.</small></span></label>
+    <div class="slider" id="collisionRadiusControls" hidden><div class="slider-head"><label for="collisionRadius">Collision distance</label><output id="collisionRadiusValue">65%</output></div>
+     <input type="range" id="collisionRadius" min="25" max="130" step="5" value="65"/><small>Percentage of starting node spacing; reset to apply.</small>
+    </div>
+    <label class="check"><input id="collisionPulse" type="checkbox" checked/><span>Highlight impacts<small>Particle size swells then settles, without changing physics.</small></span></label>
+    <p id="collisionStatus" class="subtle">Particle collisions off · reflective-wall highlights available.</p>
+   </section>
+   <section><h3>08 / Geometry and drawing</h3>
+    <label class="check"><input id="showEdges" type="checkbox" checked/><span>Draw connections</span></label>
+    <label class="check"><input id="showVelocity" type="checkbox"/><span>Velocity arrows<small>One in three particles in compatible modes</small></span></label>
+    <label class="check"><input id="showTrails" type="checkbox" checked/><span>Particle trails</span></label>
+    <div class="slider"><div class="slider-head"><label for="trailPersistence">Trail persistence</label><output id="trailPersistenceValue">95%</output></div><input type="range" id="trailPersistence" min="80" max="99" step="1" value="95"/></div>
+    <div class="slider"><div class="slider-head"><label for="edgeOpacity">Connection opacity</label><output id="opacityValue">55%</output></div><input id="edgeOpacity" type="range" min=".05" max="1" step=".05" value=".55"/></div>
+   </section>
+   <section><h3>09 / Exact reversibility</h3>
+    <div class="buttonrow"><button id="verify">Verify GPU ↔ CPU + rewind</button></div>
+    <p class="subtle">Checks GPU↔CPU parity and a 64-tick round trip. The actual pass or fail appears in the status above.</p>
+    <details id="how-it-works" open><summary>Mathematical mechanics and invariants</summary>
+     <h4>Integer state</h4>
+     <pre class="equation">Sᵢ = (xᵢ, yᵢ, zᵢ, pᵢₓ, pᵢᵧ, pᵢ𝓏) ∈ ℤ⁶</pre>
+     <p>Each particle occupies eight signed 32-bit words: three position coordinates, three momenta, and padding. Precision is an explicit integer scale.</p>
+     <h4>Reversible kick and drift</h4>
+     <pre class="equation">Kₙ : p' = p + F(x; coeff[n])
+D  : x' = x + trunc(p' / 256)
+Uₙ = D ∘ Kₙ
+Uₙ⁻¹ = Kₙ⁻¹ ∘ D⁻¹</pre>
+     <p>The kick depends only on unchanged integer positions. Reverse drift restores those positions first, then the exact same force is subtracted.</p>
+     <h4>Smooth dynamic-contact force (V2)</h4>
+     <p>The old integer coefficient makes small strengths inactive until rounding reaches one entire unit, followed by a full-displacement impulse. Smooth V2 uses a signed Q14 radial coefficient, finite-range taper, and saturating strength response:</p>
+     <pre class="equation">error = clamp(r² - rest², -rest², rest²)
+fade  = clamp(256(R²-r²)/(R²-rest²), 0, 256)
+raw   = trunc(error · strength · fade / (4 rest²))
+gain  = clamp(trunc(raw · 16/(16+strength)), -2048, 2048)
+Δpᵢⱼ   = trunc(gain · (xⱼ-xᵢ) / 16384)</pre>
+     <p>The fade is 256 within the contact radius if that radius is no greater than the rest length. Integer impulses are equal-and-opposite for each pair; rewind subtracts the same position-derived force. Total linear momentum and exact reverse are preserved, without a claim of exact energy conservation.</p>
+     <h4>Smooth central bonds (V2)</h4>
+     <p>Permanent bonded edges have their own Q14 response. The signed radial error is quantized at 1/256, then converted into fractional central momentum impulses using a strength-compressed coefficient. Each directed bond has its equal-and-opposite counterpart. Strength 1 produces a small response instead of no force, while higher values are less abrupt. The legacy integer-coefficient law remains available for comparison.</p>
+     <p>1/96 coordinate precision increases the position and momentum resolution. It does not by itself fix the force law's low-strength dead zone; both improvements can be used independently.</p>
+     <h4>Coefficient history</h4>
+     <p>Live coefficients are recorded by tick. Rewind uses the historical settings that produced each state rather than the most recent slider values.</p>
+     <h4>Flocking with hidden state</h4>
+     <p>Antisymmetric integer shears exchange visible and auxiliary momenta. Cohesion and separation are position-dependent kicks. Flocking uses only mutual interactions.
+Linear particles can instead receive an optional uniform negative-Y gravity kick, reversed exactly after inverse drift.</p>
+     <h4>Reversible collisions</h4>
+     <p>For each particle, identify the nearest particle within the collision radius using the integer coordinates. Two particles interact only when they select one another; stable particle IDs resolve ties. Each disjoint pair exchanges its complete integer momentum vector. The pairing is determined by positions alone, so exchanging the momenta a second time at the same positions restores the original state exactly. Rewind applies this exchange first, before reversing drift and forces. This is a reversible equal-mass momentum-exchange demonstration, not a normal-only hard-sphere collision response.</p>
+     <h4>Collision highlighting</h4>
+     <p>A separate GPU pass marks current mutual contacts and reflective-wall impacts. The renderer briefly enlarges marked particles and returns them to their original size. Highlighting changes no physics state, collision radius, or momentum.</p>
+     <p>These springs are not the E8 scheduled lattice transport system, which has its own separate demonstration. Exact rewind is not by itself a claim of physical energy conservation.</p>
+    </details>
+   </section>
+   <section><h3>10 / Diagnostics</h3><div class="buttonrow"><button id="toggleHud" aria-pressed="false" title="Show or hide the diagnostics panel">Show HUD</button></div>
+    <div class="metrics" id="canvasHud" hidden><div class="metric"><span>Particles</span><strong id="count">—</strong></div>
+<div class="metric"><span>Grid</span><strong id="gridDimensions">—</strong></div>
+<div class="metric"><span>Connections</span><strong id="edges">—</strong></div>
+<div class="metric"><span>Flocking contacts</span><strong id="flockNeighbors">—</strong></div>
+<div class="metric"><span>Downward gravity</span><strong id="gravityInfo">—</strong></div>
+<div class="metric"><span>Force law</span><strong id="forceMode">—</strong></div>
+<div class="metric"><span>Reflective walls</span><strong id="boundaryInfo">—</strong></div>
+<div class="metric"><span>Spatial resolution</span><strong id="resolutionInfo">—</strong></div>
+<div class="metric"><span>Tick</span><strong id="ticks">—</strong></div>
+<div class="metric"><span>GPU</span><strong id="gpu">—</strong></div>
+<div class="metric"><span>Canvas</span><strong id="format">—</strong></div></div>
+   </section>
+   <section><p class="subtle">Noether + Helios · Reversible Springs V2. Physics and GPU kernels inherited from the existing Lapinet Springs implementation; the original page is unchanged.</p><a href="./docs/REVERSIBLE_SPRINGS_LIVE_COEFFICIENTS_2026-11-14.md">Coefficient history notes</a></section>
+ </aside>
+</main>
+<script type="module" src="./src/systems/reversible-springs/springs-view-v2.js?v=11"></script>
+</body></html>
